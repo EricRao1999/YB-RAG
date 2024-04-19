@@ -13,6 +13,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
+from langchain.chains.llm import LLMChain
+from langchain_core.prompts import ChatPromptTemplate
 from zhipuai import ZhipuAI
 from dashscope import Generation
 from abc import ABC
@@ -21,7 +23,7 @@ import openai
 from ollama import Client
 from rag.nlp import is_english
 from rag.utils import num_tokens_from_string
-
+from .azure_util import create_azure_llm
 
 class Base(ABC):
     def __init__(self, key, model_name):
@@ -35,21 +37,30 @@ class GptTurbo(Base):
     def __init__(self, key, model_name="gpt-3.5-turbo", base_url="https://api.openai.com/v1"):
         if not base_url: base_url="https://api.openai.com/v1"
         self.client = OpenAI(api_key=key, base_url=base_url)
+        self.llm = create_azure_llm()
         self.model_name = model_name
 
     def chat(self, system, history, gen_conf):
         if system:
             history.insert(0, {"role": "system", "content": system})
         try:
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=history,
-                **gen_conf)
-            ans = response.choices[0].message.content.strip()
-            if response.choices[0].finish_reason == "length":
-                ans += "...\nFor the content length reason, it stopped, continue?" if is_english(
-                    [ans]) else "······\n由于长度的原因，回答被截断了，要继续吗？"
-            return ans, response.usage.total_tokens
+
+            prompt = ChatPromptTemplate.from_messages([
+                ("human", "{human_input}")
+            ])
+            chain = LLMChain(llm=self.llm, prompt=prompt)
+            ai_resp = chain.invoke({"human_input": "你好"})
+            ai_message = ai_resp['text']
+
+        #     response = self.client.chat.completions.create(
+        #         model=self.model_name,
+        #         messages=history,
+        #         **gen_conf)
+        #     ans = response.choices[0].message.content.strip()
+        #     if response.choices[0].finish_reason == "length":
+        #         ans += "...\nFor the content length reason, it stopped, continue?" if is_english(
+        #             [ans]) else "······\n由于长度的原因，回答被截断了，要继续吗？"
+        #     return ans, response.usage.total_tokens
         except openai.APIError as e:
             return "**ERROR**: " + str(e), 0
 
