@@ -43,7 +43,9 @@ class HuParser:
                 model_dir, "updown_concat_xgb.model"))
         except Exception as e:
             model_dir = snapshot_download(
-                repo_id="InfiniFlow/text_concat_xgb_v1.0")
+                repo_id="InfiniFlow/text_concat_xgb_v1.0",
+                local_dir=os.path.join(get_project_base_directory(), "rag/res/deepdoc"),
+                local_dir_use_symlinks=False)
             self.updown_cnt_mdl.load_model(os.path.join(
                 model_dir, "updown_concat_xgb.model"))
 
@@ -828,9 +830,13 @@ class HuParser:
         pn = [bx["page_number"]]
         top = bx["top"] - self.page_cum_height[pn[0] - 1]
         bott = bx["bottom"] - self.page_cum_height[pn[0] - 1]
+        page_images_cnt = len(self.page_images)
+        if pn[-1] - 1 >= page_images_cnt: return ""
         while bott * ZM > self.page_images[pn[-1] - 1].size[1]:
             bott -= self.page_images[pn[-1] - 1].size[1] / ZM
             pn.append(pn[-1] + 1)
+            if pn[-1] - 1 >= page_images_cnt:
+                return ""
 
         return "@@{}\t{:.1f}\t{:.1f}\t{:.1f}\t{:.1f}##" \
             .format("-".join([str(p) for p in pn]),
