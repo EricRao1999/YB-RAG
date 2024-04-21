@@ -202,7 +202,7 @@ const model: DvaModel<ChatModelState> = {
           payload: data.data,
         });
       }
-      return data.retcode;
+      return data;
     },
     *removeToken({ payload }, { call, put }) {
       const { data } = yield call(
@@ -210,6 +210,7 @@ const model: DvaModel<ChatModelState> = {
         omit(payload, ['dialogId']),
       );
       if (data.retcode === 0) {
+        message.success(i18n.t('message.deleted'));
         yield put({
           type: 'listToken',
           payload: { dialog_id: payload.dialogId },
