@@ -42,7 +42,8 @@ class Base(ABC):
             chain = LLMChain(llm=self.llm, prompt=prompt)
             ai_resp = chain.invoke({"human_input": "你好"})
             ai_message = ai_resp['text']
-
+            print(ai_message)
+            return ai_message,ai_message.usage.total_tokens
         #     response = self.client.chat.completions.create(
         #         model=self.model_name,
         #         messages=history,
@@ -81,32 +82,35 @@ class DeepSeekChat(Base):
 
 
 class QWenChat(Base):
-    def __init__(self, key, model_name=Generation.Models.qwen_turbo, **kwargs):
-        import dashscope
-        dashscope.api_key = key
-        self.model_name = model_name
+    def __init__(self, key, model_name="gpt-3.5-turbo", base_url="https://api.openai.com/v1"):
+        if not base_url: base_url="https://api.openai.com/v1"
+        super().__init__(key, model_name, base_url)
+    # def __init__(self, key, model_name=Generation.Models.qwen_turbo, **kwargs):
+    #     import dashscope
+    #     dashscope.api_key = key
+    #     self.model_name = model_name
 
-    def chat(self, system, history, gen_conf):
-        from http import HTTPStatus
-        if system:
-            history.insert(0, {"role": "system", "content": system})
-        response = Generation.call(
-            self.model_name,
-            messages=history,
-            result_format='message',
-            **gen_conf
-        )
-        ans = ""
-        tk_count = 0
-        if response.status_code == HTTPStatus.OK:
-            ans += response.output.choices[0]['message']['content']
-            tk_count += response.usage.total_tokens
-            if response.output.choices[0].get("finish_reason", "") == "length":
-                ans += "...\nFor the content length reason, it stopped, continue?" if is_english(
-                    [ans]) else "······\n由于长度的原因，回答被截断了，要继续吗？"
-            return ans, tk_count
+    # def chat(self, system, history, gen_conf):
+    #     from http import HTTPStatus
+    #     if system:
+    #         history.insert(0, {"role": "system", "content": system})
+    #     response = Generation.call(
+    #         self.model_name,
+    #         messages=history,
+    #         result_format='message',
+    #         **gen_conf
+    #     )
+    #     ans = ""
+    #     tk_count = 0
+    #     if response.status_code == HTTPStatus.OK:
+    #         ans += response.output.choices[0]['message']['content']
+    #         tk_count += response.usage.total_tokens
+    #         if response.output.choices[0].get("finish_reason", "") == "length":
+    #             ans += "...\nFor the content length reason, it stopped, continue?" if is_english(
+    #                 [ans]) else "······\n由于长度的原因，回答被截断了，要继续吗？"
+    #         return ans, tk_count
 
-        return "**ERROR**: " + response.message, tk_count
+    #     return "**ERROR**: " + response.message, tk_count
 
 
 class ZhipuChat(Base):
