@@ -24,16 +24,18 @@ import sys
 import time
 import traceback
 from functools import partial
-from rag.utils import MINIO
+
+from api.db.services.file2document_service import File2DocumentService
+from rag.utils.minio_conn import MINIO
 from api.db.db_models import close_connection
-from rag.settings import database_logger
+from rag.settings import database_logger, SVR_QUEUE_NAME
 from rag.settings import cron_logger, DOC_MAXIMUM_SIZE
 from multiprocessing import Pool
 import numpy as np
 from elasticsearch_dsl import Q
 from multiprocessing.context import TimeoutError
 from api.db.services.task_service import TaskService
-from rag.utils import ELASTICSEARCH
+from rag.utils.es_conn import ELASTICSEARCH
 from timeit import default_timer as timer
 from rag.utils import rmSpace, findMaxTm
 
@@ -87,30 +89,34 @@ def set_progress(task_id, from_page=0, to_page=-1,
     except Exception as e:
         cron_logger.error("set_progress:({}), {}".format(task_id, str(e)))
 
+    close_connection()
     if cancel:
         sys.exit()
 
 
-def collect(comm, mod, tm):
-    tasks = TaskService.get_tasks(tm, mod, comm)
-    #print(tasks)
-    if len(tasks) == 0:
-        time.sleep(1)
+def collect():
+    try:
+        payload = REDIS_CONN.queue_consumer(SVR_QUEUE_NAME, "rag_flow_svr_task_broker", "rag_flow_svr_task_consumer")
+        if not payload:
+            time.sleep(1)
+            return pd.DataFrame()
+    except Exception as e:
+        cron_logger.error("Get task event from queue exception:" + str(e))
         return pd.DataFrame()
+
+    msg = payload.get_message()
+    payload.ack()
+    if not msg: return pd.DataFrame()
+
+    if TaskService.do_cancel(msg["id"]):
+        return pd.DataFrame()
+    tasks = TaskService.get_tasks(msg["id"])
+    assert tasks, "{} empty task!".format(msg["id"])
     tasks = pd.DataFrame(tasks)
-    mtm = tasks["update_time"].max()
-    cron_logger.info("TOTAL:{}, To:{}".format(len(tasks), mtm))
     return tasks
 
 
 def get_minio_binary(bucket, name):
-    global MINIO
-    if REDIS_CONN.is_alive():
-        try:
-            r = REDIS_CONN.get("{}/{}".format(bucket, name))
-            if r: return r
-        except Exception as e:
-            cron_logger.warning("Get redis[EXCEPTION]:" + str(e))
     return MINIO.get(bucket, name)
 
 
@@ -126,12 +132,10 @@ def build(row):
         row["from_page"],
         row["to_page"])
     chunker = FACTORY[row["parser_id"].lower()]
-    pool = Pool(processes=1)
     try:
         st = timer()
-        thr = pool.apply_async(get_minio_binary, args=(row["kb_id"], row["location"]))
-        binary = thr.get(timeout=90)
-        pool.terminate()
+        bucket, name = File2DocumentService.get_minio_address(doc_id=row["doc_id"])
+        binary = get_minio_binary(bucket, name)
         cron_logger.info(
             "From minio({}) {}/{}".format(timer()-st, row["location"], row["name"]))
         cks = chunker.chunk(row["name"], binary=binary, from_page=row["from_page"],
@@ -150,7 +154,6 @@ def build(row):
         else:
             callback(-1, f"Internal server error: %s" %
                      str(e).replace("'", ""))
-        pool.terminate()
         traceback.print_exc()
 
         cron_logger.error(
@@ -163,6 +166,7 @@ def build(row):
         "doc_id": row["doc_id"],
         "kb_id": [str(row["kb_id"])]
     }
+    el = 0
     for ck in cks:
         d = copy.deepcopy(doc)
         d.update(ck)
@@ -182,10 +186,13 @@ def build(row):
         else:
             d["image"].save(output_buffer, format='JPEG')
 
+        st = timer()
         MINIO.put(row["kb_id"], d["_id"], output_buffer.getvalue())
+        el += timer() - st
         d["img_id"] = "{}-{}".format(row["kb_id"], d["_id"])
         del d["image"]
         docs.append(d)
+    cron_logger.info("MINIO PUT({}):{}".format(row["name"], el))
 
     return docs
 
@@ -237,20 +244,13 @@ def embedding(docs, mdl, parser_config={}, callback=None):
     return tk_count
 
 
-def main(comm, mod):
-    tm_fnm = os.path.join(
-        get_project_base_directory(),
-        "rag/res",
-        f"{comm}-{mod}.tm")
-    tm = findMaxTm(tm_fnm)
-    rows = collect(comm, mod, tm)
+def main():
+    rows = collect()
     if len(rows) == 0:
         return
 
-    tmf = open(tm_fnm, "a+")
     for _, r in rows.iterrows():
         callback = partial(set_progress, r["id"], r["from_page"], r["to_page"])
-        #callback(random.random()/10., "Task has been received.")
         try:
             embd_mdl = LLMBundle(r["tenant_id"], LLMType.EMBEDDING, llm_name=r["embd_id"], lang=r["language"])
         except Exception as e:
@@ -258,11 +258,12 @@ def main(comm, mod):
             callback(prog=-1, msg=str(e))
             continue
 
+        st = timer()
         cks = build(r)
+        cron_logger.info("Build chunks({}): {}".format(r["name"], timer()-st))
         if cks is None:
             continue
         if not cks:
-            tmf.write(str(r["update_time"]) + "\n")
             callback(1., "No chunk! Done!")
             continue
         # TODO: exception handler
@@ -277,12 +278,14 @@ def main(comm, mod):
             callback(-1, "Embedding error:{}".format(str(e)))
             cron_logger.error(str(e))
             tk_count = 0
+        cron_logger.info("Embedding elapsed({}): {}".format(r["name"], timer()-st))
 
         callback(msg="Finished embedding({})! Start to build index!".format(timer()-st))
         init_kb(r)
         chunk_count = len(set([c["_id"] for c in cks]))
         st = timer()
         es_r = ELASTICSEARCH.bulk(cks, search.index_name(r["tenant_id"]))
+        cron_logger.info("Indexing elapsed({}): {}".format(r["name"], timer()-st))
         if es_r:
             callback(-1, "Index failure!")
             ELASTICSEARCH.deleteByQuery(
@@ -300,8 +303,6 @@ def main(comm, mod):
                 "Chunk doc({}), token({}), chunks({}), elapsed:{}".format(
                     r["id"], tk_count, len(cks), timer()-st))
 
-        tmf.write(str(r["update_time"]) + "\n")
-    tmf.close()
 
 
 if __name__ == "__main__":
@@ -310,8 +311,5 @@ if __name__ == "__main__":
     peewee_logger.addHandler(database_logger.handlers[0])
     peewee_logger.setLevel(database_logger.level)
 
-    #from mpi4py import MPI
-    #comm = MPI.COMM_WORLD
     while True:
-        main(int(sys.argv[2]), int(sys.argv[1]))
-        close_connection()
+        main()

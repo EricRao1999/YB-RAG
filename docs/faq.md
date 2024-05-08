@@ -50,12 +50,12 @@ This feature and the related APIs are still in development. Contributions are we
 
 ### 1. Issues with docker images
 
-#### 1.1 Due to the fast iteration of RAGFlow updates, it is recommended to build the image from scratch.
+#### 1.1 How to build the RAGFlow image from scratch?
 
 ```
 $ git clone https://github.com/infiniflow/ragflow.git
 $ cd ragflow
-$ docker build -t infiniflow/ragflow:v0.3.0 .
+$ docker build -t infiniflow/ragflow:latest .
 $ cd ragflow/docker
 $ chmod +x ./entrypoint.sh
 $ docker compose up -d
@@ -68,17 +68,42 @@ $ docker compose up -d
 curl https://hf-mirror.com
 ```
 
-2. If your network works fine, the issue lies with the Docker network configuration. Adjust the Docker building accordingly:
+2. If your network works fine, the issue lies with the Docker network configuration. Replace the Docker building command:
+```bash
+docker build -t infiniflow/ragflow:vX.Y.Z.
 ```
-# Original：
-docker build -t infiniflow/ragflow:v0.3.0 .
-# Current：
-docker build -t infiniflow/ragflow:v0.3.0 . --network host
+   With this:  
+```bash
+docker build -t infiniflow/ragflow:vX.Y.Z. --network host
 ```
 
-### 2. Issues with huggingface models.
+### 2. Issues with huggingface models
 
-#### 2.1. `MaxRetryError: HTTPSConnectionPool(host='hf-mirror.com', port=443)`
+#### 2.1 Cannot access https://huggingface.co
+ 
+A *locally* deployed RAGflow downloads OCR and embedding modules from [Huggingface website](https://huggingface.co) by default. If your machine is unable to access this site, the following error occurs and PDF parsing fails: 
+
+```
+FileNotFoundError: [Errno 2] No such file or directory: '/root/.cache/huggingface/hub/models--InfiniFlow--deepdoc/snapshots/be0c1e50eef6047b412d1800aa89aba4d275f997/ocr.res'
+```
+ To fix this issue, use https://hf-mirror.com instead:
+
+ 1. Stop all containers and remove all related resources:
+
+ ```bash
+ cd ragflow/docker/
+ docker compose down
+ ```
+
+ 2. Replace `https://huggingface.co` with `https://hf-mirror.com` in **ragflow/docker/docker-compose.yml**.
+ 
+ 3. Start up the server: 
+
+ ```bash
+ docker compose up -d 
+ ```
+
+#### 2.2. `MaxRetryError: HTTPSConnectionPool(host='hf-mirror.com', port=443)`
 
 This error suggests that you do not have Internet access or are unable to connect to hf-mirror.com. Try the following: 
 
@@ -88,7 +113,7 @@ This error suggests that you do not have Internet access or are unable to connec
 - ~/deepdoc:/ragflow/rag/res/deepdoc
 ```
 
-#### 2.2 `FileNotFoundError: [Errno 2] No such file or directory: '/root/.cache/huggingface/hub/models--InfiniFlow--deepdoc/snapshots/FileNotFoundError: [Errno 2] No such file or directory: '/ragflow/rag/res/deepdoc/ocr.res'be0c1e50eef6047b412d1800aa89aba4d275f997/ocr.res'`
+#### 2.3 `FileNotFoundError: [Errno 2] No such file or directory: '/root/.cache/huggingface/hub/models--InfiniFlow--deepdoc/snapshots/FileNotFoundError: [Errno 2] No such file or directory: '/ragflow/rag/res/deepdoc/ocr.res'be0c1e50eef6047b412d1800aa89aba4d275f997/ocr.res'`
 
 1. Check your network from within Docker, for example: 
 ```bash
@@ -143,7 +168,7 @@ You will not log in to RAGFlow unless the server is fully initialized. Run `dock
 
 #### 4.1 `dependency failed to start: container ragflow-mysql is unhealthy`
 
-`dependency failed to start: container ragflow-mysql is unhealthy` means that your MySQL container failed to start. Try replacing `mysql:5.7.18` with `mariadb:10.5.8` in **docker-compose-base.yml** if mysql fails to start.
+`dependency failed to start: container ragflow-mysql is unhealthy` means that your MySQL container failed to start. Try replacing `mysql:5.7.18` with `mariadb:10.5.8` in **docker-compose-base.yml**.
 
 #### 4.2 `Realtime synonym is disabled, since no redis connection`
 
@@ -165,21 +190,34 @@ If your RAGFlow is deployed *locally*, try the following:
 ```bash
 docker logs -f ragflow-server
 ```
-2. Check if the **tast_executor.py** process exist.
+2. Check if the **task_executor.py** process exists.
 3. Check if your RAGFlow server can access hf-mirror.com or huggingface.com.
 
+#### 4.5 Why does my pdf parsing stall near completion, while the log does not show any error?
 
-#### 4.5 `Index failure`
+If your RAGFlow is deployed *locally*, the parsing process is likely killed due to insufficient RAM. Try increasing your memory allocation by increasing the `MEM_LIMIT` value in **docker/.env**.
+
+> Ensure that you restart up your RAGFlow server for your changes to take effect!
+> ```bash
+> docker compose stop
+> ```
+> ```bash
+> docker compose up -d
+> ```
+
+![nearcompletion](https://github.com/infiniflow/ragflow/assets/93570324/563974c3-f8bb-4ec8-b241-adcda8929cbb)
+
+#### 4.6 `Index failure`
 
 An index failure usually indicates an unavailable Elasticsearch service.
 
-#### 4.6 How to check the log of RAGFlow?
+#### 4.7 How to check the log of RAGFlow?
 
 ```bash
 tail -f path_to_ragflow/docker/ragflow-logs/rag/*.log
 ```
 
-#### 4.7 How to check the status of each component in RAGFlow?
+#### 4.8 How to check the status of each component in RAGFlow?
 
 ```bash
 $ docker ps
@@ -187,13 +225,13 @@ $ docker ps
 *The system displays the following if all your RAGFlow components are running properly:* 
 
 ```
-5bc45806b680   infiniflow/ragflow:v0.3.0     "./entrypoint.sh"        11 hours ago   Up 11 hours               0.0.0.0:80->80/tcp, :::80->80/tcp, 0.0.0.0:443->443/tcp, :::443->443/tcp, 0.0.0.0:9380->9380/tcp, :::9380->9380/tcp   ragflow-server
+5bc45806b680   infiniflow/ragflow:latest     "./entrypoint.sh"        11 hours ago   Up 11 hours               0.0.0.0:80->80/tcp, :::80->80/tcp, 0.0.0.0:443->443/tcp, :::443->443/tcp, 0.0.0.0:9380->9380/tcp, :::9380->9380/tcp   ragflow-server
 91220e3285dd   docker.elastic.co/elasticsearch/elasticsearch:8.11.3   "/bin/tini -- /usr/l…"   11 hours ago   Up 11 hours (healthy)     9300/tcp, 0.0.0.0:9200->9200/tcp, :::9200->9200/tcp           ragflow-es-01
 d8c86f06c56b   mysql:5.7.18        "docker-entrypoint.s…"   7 days ago     Up 16 seconds (healthy)   0.0.0.0:3306->3306/tcp, :::3306->3306/tcp     ragflow-mysql
 cd29bcb254bc   quay.io/minio/minio:RELEASE.2023-12-20T01-00-02Z       "/usr/bin/docker-ent…"   2 weeks ago    Up 11 hours      0.0.0.0:9001->9001/tcp, :::9001->9001/tcp, 0.0.0.0:9000->9000/tcp, :::9000->9000/tcp     ragflow-minio
 ```
 
-#### 4.8 `Exception: Can't connect to ES cluster`
+#### 4.9 `Exception: Can't connect to ES cluster`
 
 1. Check the status of your Elasticsearch component:
 
@@ -220,23 +258,26 @@ $ docker ps
     curl http://<IP_OF_ES>:<PORT_OF_ES>
     ```
 
+#### 4.10 Can't start ES container and get `Elasticsearch did not exit normally`
 
-#### 4.9 `{"data":null,"retcode":100,"retmsg":"<NotFound '404: Not Found'>"}`
+This is because you forgot to update the `vm.max_map_count` value in **/etc/sysctl.conf** and your change to this value was reset after a system reboot. 
 
-Your IP address or port number may be incorrect. If you are using the default configurations, enter http://<IP_OF_YOUR_MACHINE> (**NOT `localhost`, NOT 9380, AND NO PORT NUMBER REQUIRED!**) in your browser. This should work.
+#### 4.11 `{"data":null,"retcode":100,"retmsg":"<NotFound '404: Not Found'>"}`
 
-#### 4.10 `Ollama - Mistral instance running at 127.0.0.1:11434 but cannot add Ollama as model in RagFlow`
+Your IP address or port number may be incorrect. If you are using the default configurations, enter http://<IP_OF_YOUR_MACHINE> (**NOT 9380, AND NO PORT NUMBER REQUIRED!**) in your browser. This should work.
+
+#### 4.12 `Ollama - Mistral instance running at 127.0.0.1:11434 but cannot add Ollama as model in RagFlow`
 
 A correct Ollama IP address and port is crucial to adding models to Ollama:
 
 - If you are on demo.ragflow.io, ensure that the server hosting Ollama has a publicly accessible IP address.Note that 127.0.0.1 is not a publicly accessible IP address.
 - If you deploy RAGFlow locally, ensure that Ollama and RAGFlow are in the same LAN and can comunicate with each other.
 
-#### 4.11 Do you offer examples of using deepdoc to parse PDF or other files?
+#### 4.13 Do you offer examples of using deepdoc to parse PDF or other files?
 
 Yes, we do. See the Python files under the **rag/app** folder. 
 
-#### 4.12 Why did I fail to upload a 10MB+ file to my locally deployed RAGFlow?
+#### 4.14 Why did I fail to upload a 10MB+ file to my locally deployed RAGFlow?
 
 You probably forgot to update the **MAX_CONTENT_LENGTH** environment variable:
 
@@ -255,7 +296,7 @@ docker compose up ragflow -d
 ```
    *Now you should be able to upload files of sizes less than 100MB.*
 
-#### 4.13 `Table 'rag_flow.document' doesn't exist`
+#### 4.15 `Table 'rag_flow.document' doesn't exist`
 
 This exception occurs when starting up the RAGFlow server. Try the following: 
 
@@ -278,7 +319,7 @@ This exception occurs when starting up the RAGFlow server. Try the following:
   docker compose up
   ```
 
-#### 4.14 `hint : 102  Fail to access model  Connection error`
+#### 4.16 `hint : 102  Fail to access model  Connection error`
 
 ![hint102](https://github.com/infiniflow/ragflow/assets/93570324/6633d892-b4f8-49b5-9a0a-37a0a8fba3d2)
 
@@ -286,6 +327,13 @@ This exception occurs when starting up the RAGFlow server. Try the following:
 2. Do not forget to append **/v1/** to **http://IP:port**: 
    **http://IP:port/v1/**
 
+#### 4.17 `FileNotFoundError: [Errno 2] No such file or directory`
+
+1. Check if the status of your minio container is healthy:
+   ```bash
+   docker ps
+   ```
+2. Ensure that the username and password settings of MySQL and MinIO in **docker/.env** are in line with those in **docker/service_conf.yml**.
 
 ## Usage
 
@@ -304,7 +352,6 @@ You limit what the system responds to what you specify in **Empty response** if 
 
 ![](https://github.com/infiniflow/ragflow/assets/93570324/8cfb6fa4-8a97-415d-b9fa-b6f405a055f3)
 
-
 ### 4. How to run RAGFlow with a locally deployed LLM?
 
 You can use Ollama to deploy local LLM. See [here](https://github.com/infiniflow/ragflow/blob/main/docs/ollama.md) for more information. 
@@ -316,6 +363,43 @@ You can use Ollama to deploy local LLM. See [here](https://github.com/infiniflow
 
 ### 6. How to configure RAGFlow to respond with 100% matched results, rather than utilizing LLM?
 
-1. Click the **Knowledge Base** tab in the middle top of the page.
+1. Click **Knowledge Base** in the middle top of the page.
 2. Right click the desired knowledge base to display the **Configuration** dialogue. 
 3. Choose **Q&A** as the chunk method and click **Save** to confirm your change. 
+
+### 7 Do I need to connect to Redis?
+
+No, connecting to Redis is not required. 
+
+### 8 `Error: Range of input length should be [1, 30000]`
+
+This error occurs because there are too many chunks matching your search criteria. Try reducing the **TopN** and increasing **Similarity threshold** to fix this issue: 
+
+1. Click **Chat** in the middle top of the page. 
+2. Right click the desired conversation > **Edit** > **Prompt Engine**
+3. Reduce the **TopN** and/or raise **Silimarity threshold**.
+4. Click **OK** to confirm your changes.
+
+![topn](https://github.com/infiniflow/ragflow/assets/93570324/7ec72ab3-0dd2-4cff-af44-e2663b67b2fc)
+
+### 9 How to update RAGFlow to the latest version?
+
+1. Pull the latest source code
+   ```bash
+   cd ragflow
+   git pull
+   ```
+2. If you used `docker compose up -d` to start up RAGFlow server:
+   ```bash
+   docker pull infiniflow/ragflow:dev
+   ```
+   ```bash
+   docker compose up ragflow -d
+   ```
+3. If you used `docker compose -f docker-compose-CN.yml up -d` to start up RAGFlow server:
+   ```bash
+   docker pull swr.cn-north-4.myhuaweicloud.com/infiniflow/ragflow:dev
+   ```
+   ```bash
+   docker compose -f docker-compose-CN.yml up -d
+   ```

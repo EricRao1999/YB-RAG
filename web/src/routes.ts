@@ -82,7 +82,15 @@ const routes = [
       },
       {
         path: '/file',
-        component: '@/pages/file',
+        component: '@/pages/file-manager',
+      },
+      {
+        path: '/flow',
+        component: '@/pages/flow',
+      },
+      {
+        path: 'document/:id',
+        component: '@/pages/document-viewer',
       },
     ],
   },
