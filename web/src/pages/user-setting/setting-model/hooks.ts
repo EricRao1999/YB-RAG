@@ -30,11 +30,12 @@ export const useSubmitApiKey = () => {
   } = useSetModalState();
 
   const onApiKeySavingOk = useCallback(
-    async (apiKey: string, baseUrl: string) => {
+    async (apiKey: string, baseUrl: string, api_version:string) => {
       const ret = await saveApiKey({
         ...savingParams,
         api_key: apiKey,
         base_url: baseUrl,
+        api_version: api_version
       });
 
       if (ret === 0) {

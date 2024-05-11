@@ -21,7 +21,7 @@ import os
 from abc import ABC
 from ollama import Client
 import dashscope
-from openai import OpenAI
+from openai import OpenAI, AzureOpenAI
 from FlagEmbedding import FlagModel
 import torch
 import numpy as np
@@ -44,7 +44,7 @@ except Exception as e:
 
 
 class Base(ABC):
-    def __init__(self, key, model_name):
+    def __init__(self, key, model_name, api_version):
         pass
 
     def encode(self, texts: list, batch_size=32):
@@ -86,10 +86,16 @@ class DefaultEmbedding(Base):
 
 class OpenAIEmbed(Base):
     def __init__(self, key, model_name="text-embedding-ada-002",
-                 base_url="https://api.openai.com/v1"):
+                 base_url="https://api.openai.com/v1",api_version="2024-02-01"):
         if not base_url:
             base_url = "https://api.openai.com/v1"
-        self.client = OpenAI(api_key=key, base_url=base_url)
+        # self.client = OpenAI(api_key=key, base_url=base_url)
+        self.client = AzureOpenAI(
+            api_key=key, 
+            azure_endpoint=base_url,
+            api_version="2024-02-01"
+        )
+        
         self.model_name = model_name
 
     def encode(self, texts: list, batch_size=32):

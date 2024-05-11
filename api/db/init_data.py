@@ -144,53 +144,54 @@ def init_llm_factory():
         # ---------------------- OpenAI ------------------------
         {
             "fid": factory_infos[0]["name"],
-            "llm_name": "gpt-3.5-turbo",
+            "llm_name": "gpt-35-turbo-16k",
             "tags": "LLM,CHAT,4K",
             "max_tokens": 4096,
             "model_type": LLMType.CHAT.value
-        }, {
-            "fid": factory_infos[0]["name"],
-            "llm_name": "gpt-3.5-turbo-16k-0613",
-            "tags": "LLM,CHAT,16k",
-            "max_tokens": 16385,
-            "model_type": LLMType.CHAT.value
-        }, {
-            "fid": factory_infos[0]["name"],
-            "llm_name": "text-embedding-ada-002",
-            "tags": "TEXT EMBEDDING,8K",
-            "max_tokens": 8191,
-            "model_type": LLMType.EMBEDDING.value
-        }, {
-            "fid": factory_infos[0]["name"],
-            "llm_name": "whisper-1",
-            "tags": "SPEECH2TEXT",
-            "max_tokens": 25 * 1024 * 1024,
-            "model_type": LLMType.SPEECH2TEXT.value
-        }, {
-            "fid": factory_infos[0]["name"],
-            "llm_name": "gpt-4",
-            "tags": "LLM,CHAT,8K",
-            "max_tokens": 8191,
-            "model_type": LLMType.CHAT.value
-        }, {
-            "fid": factory_infos[0]["name"],
-            "llm_name": "gpt-4-turbo",
-            "tags": "LLM,CHAT,8K",
-            "max_tokens": 8191,
-            "model_type": LLMType.CHAT.value
-        },{
-            "fid": factory_infos[0]["name"],
-            "llm_name": "gpt-4-32k",
-            "tags": "LLM,CHAT,32K",
-            "max_tokens": 32768,
-            "model_type": LLMType.CHAT.value
-        }, {
-            "fid": factory_infos[0]["name"],
-            "llm_name": "gpt-4-vision-preview",
-            "tags": "LLM,CHAT,IMAGE2TEXT",
-            "max_tokens": 765,
-            "model_type": LLMType.IMAGE2TEXT.value
         },
+        # , {
+        #     "fid": factory_infos[0]["name"],
+        #     "llm_name": "gpt-3.5-turbo-16k-0613",
+        #     "tags": "LLM,CHAT,16k",
+        #     "max_tokens": 16385,
+        #     "model_type": LLMType.CHAT.value
+        # }, {
+        #     "fid": factory_infos[0]["name"],
+        #     "llm_name": "text-embedding-ada-002",
+        #     "tags": "TEXT EMBEDDING,8K",
+        #     "max_tokens": 8191,
+        #     "model_type": LLMType.EMBEDDING.value
+        # }, {
+        #     "fid": factory_infos[0]["name"],
+        #     "llm_name": "whisper-1",
+        #     "tags": "SPEECH2TEXT",
+        #     "max_tokens": 25 * 1024 * 1024,
+        #     "model_type": LLMType.SPEECH2TEXT.value
+        # }, {
+        #     "fid": factory_infos[0]["name"],
+        #     "llm_name": "gpt-4",
+        #     "tags": "LLM,CHAT,8K",
+        #     "max_tokens": 8191,
+        #     "model_type": LLMType.CHAT.value
+        # }, {
+        #     "fid": factory_infos[0]["name"],
+        #     "llm_name": "gpt-4-turbo",
+        #     "tags": "LLM,CHAT,8K",
+        #     "max_tokens": 8191,
+        #     "model_type": LLMType.CHAT.value
+        # },{
+        #     "fid": factory_infos[0]["name"],
+        #     "llm_name": "gpt-4-32k",
+        #     "tags": "LLM,CHAT,32K",
+        #     "max_tokens": 32768,
+        #     "model_type": LLMType.CHAT.value
+        # }, {
+        #     "fid": factory_infos[0]["name"],
+        #     "llm_name": "gpt-4-vision-preview",
+        #     "tags": "LLM,CHAT,IMAGE2TEXT",
+        #     "max_tokens": 765,
+        #     "model_type": LLMType.IMAGE2TEXT.value
+        # },
         # ----------------------- Qwen -----------------------
         {
             "fid": factory_infos[1]["name"],

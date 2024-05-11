@@ -7,13 +7,14 @@ interface IProps extends Omit<IModalManagerChildrenProps, 'showModal'> {
   loading: boolean;
   initialValue: string;
   llmFactory: string;
-  onOk: (name: string, baseUrl: string) => void;
+  onOk: (name: string, baseUrl: string, api_version:string) => void;
   showModal?(): void;
 }
 
 type FieldType = {
   api_key?: string;
   base_url?: string;
+  api_version?: string;
 };
 
 const ApiKeyModal = ({
@@ -30,7 +31,7 @@ const ApiKeyModal = ({
   const handleOk = async () => {
     const ret = await form.validateFields();
 
-    return onOk(ret.api_key, ret.base_url);
+    return onOk(ret.api_key, ret.base_url, ret.api_version);
   };
 
   const handleCancel = () => {
@@ -87,6 +88,12 @@ const ApiKeyModal = ({
             <Input placeholder="https://api.openai.com/v1" />
           </Form.Item>
         )}
+          <Form.Item<FieldType>
+            label={'API Version'}
+            name="api_version"
+          >
+            <Input placeholder="https://api.openai.com/v1" />
+          </Form.Item>
       </Form>
     </Modal>
   );
