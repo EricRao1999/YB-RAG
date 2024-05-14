@@ -1,10 +1,10 @@
-FROM swr.cn-north-4.myhuaweicloud.com/infiniflow/ragflow-base:v1.0
+FROM swr.cn-north-4.myhuaweicloud.com/infiniflow/ragflow
 USER  root
 
 WORKDIR /ragflow
 
 ADD ./web ./web
-RUN cd ./web && npm i --force && npm run build
+# RUN cd ./web && npm i --force && npm run build
 
 ADD ./api ./api
 ADD ./conf ./conf
