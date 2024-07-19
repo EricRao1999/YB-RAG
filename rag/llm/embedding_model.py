@@ -113,8 +113,21 @@ class OpenAIEmbed(Base):
 
 class AzureEmbed(Base):
     def __init__(self, key, model_name, **kwargs):
-        self.client = AzureOpenAI(api_key=key, azure_endpoint=kwargs["base_url"], api_version="2024-02-01")
+        self.client = AzureOpenAI(api_key=key, azure_endpoint='https://yprag-0506.openai.azure.com', api_version="2024-02-01")
         self.model_name = model_name
+        
+    
+    def encode(self, texts: list, batch_size=32):
+        texts = [truncate(t, 8196) for t in texts]
+        res = self.client.embeddings.create(input=texts,
+                                            model=self.model_name)
+        return np.array([d.embedding for d in res.data]
+                        ), res.usage.total_tokens
+
+    def encode_queries(self, text):
+        res = self.client.embeddings.create(input=[truncate(text, 8196)],
+                                            model=self.model_name)
+        return np.array(res.data[0].embedding), res.usage.total_tokens
 
 class BaiChuanEmbed(OpenAIEmbed):
     def __init__(self, key,

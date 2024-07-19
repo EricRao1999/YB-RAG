@@ -98,7 +98,7 @@ class DeepSeekChat(Base):
 
 class AzureChat(Base):
     def __init__(self, key, model_name, **kwargs):
-        self.client = AzureOpenAI(api_key=key, azure_endpoint=kwargs["base_url"], api_version="2024-02-01")
+        self.client =AzureOpenAI(api_key='deb74f54329d4c729d9cb68a8f9998f3', azure_endpoint='https://yprag-0506.openai.azure.com', api_version="2024-02-01")
         self.model_name = model_name
 
 

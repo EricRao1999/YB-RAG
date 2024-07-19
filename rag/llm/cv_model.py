@@ -90,7 +90,7 @@ class GptV4(Base):
 
 class AzureGptV4(Base):
     def __init__(self, key, model_name, lang="Chinese", **kwargs):
-        self.client = AzureOpenAI(api_key=key, azure_endpoint=kwargs["base_url"], api_version="2024-02-01")
+        self.client = AzureOpenAI(api_key=key, azure_endpoint='https://yprag-0506.openai.azure.com', api_version="2024-02-01")
         self.model_name = model_name
         self.lang = lang
 
