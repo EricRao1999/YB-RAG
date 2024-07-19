@@ -96,12 +96,12 @@ def chat(dialog, messages, stream=True, **kwargs):
     prompt_config = dialog.prompt_config
     field_map = KnowledgebaseService.get_field_map(dialog.kb_ids)
     # try to use sql if field mapping is good to go
-    if field_map:
-        chat_logger.info("Use SQL to retrieval:{}".format(questions[-1]))
-        ans = use_sql(questions[-1], field_map, dialog.tenant_id, chat_mdl, prompt_config.get("quote", True))
-        if ans:
-            yield ans
-            return
+    # if field_map:
+    #     chat_logger.info("Use SQL to retrieval:{}".format(questions[-1]))
+    #     ans = use_sql(questions[-1], field_map, dialog.tenant_id, chat_mdl, prompt_config.get("quote", True))
+    #     if ans:
+    #         yield ans
+    #         return
 
     for p in prompt_config["parameters"]:
         if p["key"] == "knowledge":
